@@ -7,6 +7,7 @@ import (
 
 	"github.com/hectorgimenez/d2go/pkg/data"
 	"github.com/hectorgimenez/d2go/pkg/data/area"
+	"github.com/hectorgimenez/d2go/pkg/data/object"
 	"github.com/hectorgimenez/koolo/internal/config"
 	"github.com/hectorgimenez/koolo/internal/game"
 	"github.com/hectorgimenez/koolo/internal/pather/astar"
@@ -110,23 +111,15 @@ func (pf *PathFinder) preprocessGrid(grid *game.Grid) {
 	}
 
 	for _, o := range pf.data.AreaData.Objects {
-		// Handle hidden stashes and shrines using their description
+		// Handle hidden stashes and shrines
 		// prevent getting stuck while pathing since those are considered soft blockers and cant pass through
-		if o.ID == 125 || o.ID == 127 || o.ID == 128 || o.IsShrine() {
+		if o.Name == object.InnerHellHiddenStash || o.Name == object.InnerHellHiddenStash2 || o.Name == object.InnerHellHiddenStash3 || o.IsShrine() {
 			relativePos := grid.RelativePosition(o.Position)
-
-			halfSizeX := o.Desc().SizeX / 2
-			halfSizeY := o.Desc().SizeY / 2
-
-			// Account for offset
-			baseX := relativePos.X + o.Desc().Xoffset
-			baseY := relativePos.Y + o.Desc().Yoffset
-
-			// Block the area using actual dimensions
-			for dy := -halfSizeY; dy <= halfSizeY; dy++ {
-				for dx := -halfSizeX; dx <= halfSizeX; dx++ {
-					y := baseY + dy
-					x := baseX + dx
+			// Block 5x5 area around it
+			for dy := -2; dy <= 2; dy++ {
+				for dx := -2; dx <= 2; dx++ {
+					y := relativePos.Y + dy
+					x := relativePos.X + dx
 					if y >= 0 && y < len(grid.CollisionGrid) &&
 						x >= 0 && x < len(grid.CollisionGrid[y]) {
 						grid.CollisionGrid[y][x] = game.CollisionTypeNonWalkable
@@ -245,4 +238,10 @@ func (pf *PathFinder) GetClosestWalkablePathFrom(from, dest data.Position) (Path
 	}
 
 	return nil, 0, false
+}
+func abs(x int) int {
+	if x < 0 {
+		return -x
+	}
+	return x
 }
