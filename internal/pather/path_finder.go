@@ -110,14 +110,23 @@ func (pf *PathFinder) preprocessGrid(grid *game.Grid) {
 	}
 
 	for _, o := range pf.data.AreaData.Objects {
-		// Enhanced Hidden Stash handling with 5x5 collision blocking
-		if string(o.Name) == "hidden stash" {
+		// Handle hidden stashes and shrines using their description
+		// prevent getting stuck while pathing since those are considered soft blockers and cant pass through
+		if o.ID == 125 || o.ID == 127 || o.ID == 128 || o.IsShrine() {
 			relativePos := grid.RelativePosition(o.Position)
-			// Block 5x5 area around stashes
-			for dy := -2; dy <= 2; dy++ {
-				for dx := -2; dx <= 2; dx++ {
-					y := relativePos.Y + dy
-					x := relativePos.X + dx
+
+			halfSizeX := o.Desc().SizeX / 2
+			halfSizeY := o.Desc().SizeY / 2
+
+			// Account for offset
+			baseX := relativePos.X + o.Desc().Xoffset
+			baseY := relativePos.Y + o.Desc().Yoffset
+
+			// Block the area using actual dimensions
+			for dy := -halfSizeY; dy <= halfSizeY; dy++ {
+				for dx := -halfSizeX; dx <= halfSizeX; dx++ {
+					y := baseY + dy
+					x := baseX + dx
 					if y >= 0 && y < len(grid.CollisionGrid) &&
 						x >= 0 && x < len(grid.CollisionGrid[y]) {
 						grid.CollisionGrid[y][x] = game.CollisionTypeNonWalkable
@@ -130,7 +139,7 @@ func (pf *PathFinder) preprocessGrid(grid *game.Grid) {
 		if !grid.IsWalkable(o.Position) {
 			continue
 		}
-		// Add objects to the collision grid as obstacles
+		// Add other objects to the collision grid as obstacles
 		relativePos := grid.RelativePosition(o.Position)
 		grid.CollisionGrid[relativePos.Y][relativePos.X] = game.CollisionTypeObject
 		for i := -2; i <= 2; i++ {
