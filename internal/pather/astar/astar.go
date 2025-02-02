@@ -21,10 +21,10 @@ var (
 		{1, 0},   // Right
 		{0, -1},  // Up
 		{-1, 0},  // Left
-		{1, 1},   // Down-Right
-		{-1, 1},  // Down-Left
-		{1, -1},  // Up-Right
-		{-1, -1}, // Up-Left
+		{1, 1},   // Down-Right (Southeast)
+		{-1, 1},  // Down-Left (Southwest)
+		{1, -1},  // Up-Right (Northeast)
+		{-1, -1}, // Up-Left (Northwest)
 	}
 )
 
@@ -39,6 +39,7 @@ func CalculatePath(g *game.Grid, areaID area.ID, start, goal data.Position) ([]d
 	pq := make(PriorityQueue, 0)
 	heap.Init(&pq)
 
+	// Use a 2D slice to store the cost of each node
 	costSoFar := make([][]int, g.Width)
 	cameFrom := make([][]data.Position, g.Width)
 	for i := range costSoFar {
@@ -65,6 +66,7 @@ func CalculatePath(g *game.Grid, areaID area.ID, start, goal data.Position) ([]d
 		current := heap.Pop(&pq).(*Node)
 		nodesExplored++
 
+		// Let's build the path if we reached the goal
 		if current.Position == goal {
 			return reconstructPath(cameFrom, start, goal), nodesExplored, true
 		}
@@ -103,6 +105,7 @@ func updateNeighbors(grid *game.Grid, node *Node, directions []data.Position, ne
 
 	for _, d := range directions {
 		newX, newY := x+d.X, y+d.Y
+		// Check if the new neighbor is within grid bounds
 		if newX >= 0 && newX < grid.Width && newY >= 0 && newY < grid.Height {
 			tileType := grid.CollisionGrid[newY][newX]
 			if tileType == game.CollisionTypeNonWalkable {
@@ -116,7 +119,7 @@ func updateNeighbors(grid *game.Grid, node *Node, directions []data.Position, ne
 var tileCost = map[game.CollisionType]int{
 	game.CollisionTypeWalkable:    1,
 	game.CollisionTypeMonster:     16,
-	game.CollisionTypeObject:      4,
+	game.CollisionTypeObject:      4, // Soft blocker
 	game.CollisionTypeLowPriority: 20,
 	game.CollisionTypeNonWalkable: math.MaxInt32, // Completely block non-walkable
 }

@@ -91,67 +91,70 @@ func (pf *PathFinder) GetPathFrom(from, to data.Position) (Path, int, bool) {
 }
 
 func (pf *PathFinder) preprocessGrid(grid *game.Grid) {
-    a := pf.data.AreaData
-    if a.Area == area.ArcaneSanctuary && pf.data.CanTeleport() {
-        for y := 0; y < len(grid.CollisionGrid); y++ {
-            for x := 0; x < len(grid.CollisionGrid[y]); x++ {
-                if grid.CollisionGrid[y][x] == game.CollisionTypeNonWalkable {
-                    grid.CollisionGrid[y][x] = game.CollisionTypeLowPriority
-                }
-            }
-        }
-    }
+	a := pf.data.AreaData
 
-    if a.Area == area.LutGholein {
-        grid.CollisionGrid[13][210] = game.CollisionTypeNonWalkable
-    }
+	// Special handling for Arcane Sanctuary (to allow pathing with platforms)
+	if a.Area == area.ArcaneSanctuary && pf.data.CanTeleport() {
+		// Make all non-walkable tiles into low priority tiles for teleport pathing
+		for y := 0; y < len(grid.CollisionGrid); y++ {
+			for x := 0; x < len(grid.CollisionGrid[y]); x++ {
+				if grid.CollisionGrid[y][x] == game.CollisionTypeNonWalkable {
+					grid.CollisionGrid[y][x] = game.CollisionTypeLowPriority
+				}
+			}
+		}
+	}
+	// Lut Gholein map is a bit bugged, we should close this fake path to avoid pathing issues
+	if a.Area == area.LutGholein {
+		grid.CollisionGrid[13][210] = game.CollisionTypeNonWalkable
+	}
 
-    for _, o := range pf.data.AreaData.Objects {
-        // Enhanced Hidden Stash handling with 5x5 collision blocking
-        if string(o.Name) == "hidden stash" {
-            relativePos := grid.RelativePosition(o.Position)
-            // Block 5x5 area around stashes
-            for dy := -2; dy <= 2; dy++ {
-                for dx := -2; dx <= 2; dx++ {
-                    y := relativePos.Y + dy
-                    x := relativePos.X + dx
-                    if y >= 0 && y < len(grid.CollisionGrid) && 
-                       x >= 0 && x < len(grid.CollisionGrid[y]) {
-                        grid.CollisionGrid[y][x] = game.CollisionTypeNonWalkable
-                    }
-                }
-            }
-            continue
-        }
+	for _, o := range pf.data.AreaData.Objects {
+		// Enhanced Hidden Stash handling with 5x5 collision blocking
+		if string(o.Name) == "hidden stash" {
+			relativePos := grid.RelativePosition(o.Position)
+			// Block 5x5 area around stashes
+			for dy := -2; dy <= 2; dy++ {
+				for dx := -2; dx <= 2; dx++ {
+					y := relativePos.Y + dy
+					x := relativePos.X + dx
+					if y >= 0 && y < len(grid.CollisionGrid) &&
+						x >= 0 && x < len(grid.CollisionGrid[y]) {
+						grid.CollisionGrid[y][x] = game.CollisionTypeNonWalkable
+					}
+				}
+			}
+			continue
+		}
 
-        // Existing object handling
-        if !grid.IsWalkable(o.Position) {
-            continue
-        }
-        relativePos := grid.RelativePosition(o.Position)
-        grid.CollisionGrid[relativePos.Y][relativePos.X] = game.CollisionTypeObject
-        for i := -2; i <= 2; i++ {
-            for j := -2; j <= 2; j++ {
-                if i == 0 && j == 0 || relativePos.Y+i < 0 || 
-                   relativePos.Y+i >= len(grid.CollisionGrid) || 
-                   relativePos.X+j < 0 || relativePos.X+j >= len(grid.CollisionGrid[relativePos.Y]) {
-                    continue
-                }
-                if grid.CollisionGrid[relativePos.Y+i][relativePos.X+j] == game.CollisionTypeWalkable {
-                    grid.CollisionGrid[relativePos.Y+i][relativePos.X+j] = game.CollisionTypeLowPriority
-                }
-            }
-        }
-    }
+		if !grid.IsWalkable(o.Position) {
+			continue
+		}
+		// Add objects to the collision grid as obstacles
+		relativePos := grid.RelativePosition(o.Position)
+		grid.CollisionGrid[relativePos.Y][relativePos.X] = game.CollisionTypeObject
+		for i := -2; i <= 2; i++ {
+			for j := -2; j <= 2; j++ {
+				if i == 0 && j == 0 || relativePos.Y+i < 0 ||
+					relativePos.Y+i >= len(grid.CollisionGrid) ||
+					relativePos.X+j < 0 || relativePos.X+j >= len(grid.CollisionGrid[relativePos.Y]) {
+					continue
+				}
+				if grid.CollisionGrid[relativePos.Y+i][relativePos.X+j] == game.CollisionTypeWalkable {
+					grid.CollisionGrid[relativePos.Y+i][relativePos.X+j] = game.CollisionTypeLowPriority
+				}
+			}
+		}
+	}
 
-    // Existing monster handling
-    for _, m := range pf.data.Monsters {
-        if !grid.IsWalkable(m.Position) {
-            continue
-        }
-        relativePos := grid.RelativePosition(m.Position)
-        grid.CollisionGrid[relativePos.Y][relativePos.X] = game.CollisionTypeMonster
-    }
+	// Add monsters to the collision grid as obstacles
+	for _, m := range pf.data.Monsters {
+		if !grid.IsWalkable(m.Position) {
+			continue
+		}
+		relativePos := grid.RelativePosition(m.Position)
+		grid.CollisionGrid[relativePos.Y][relativePos.X] = game.CollisionTypeMonster
+	}
 }
 
 func (pf *PathFinder) mergeGrids(to data.Position) (*game.Grid, error) {
@@ -178,6 +181,7 @@ func (pf *PathFinder) mergeGrids(to data.Position) (*game.Grid, error) {
 				resultGrid[i] = make([]game.CollisionType, width)
 			}
 
+			// Let's copy both grids into the result grid
 			copyGrid(resultGrid, origin.CollisionGrid, origin.OffsetX-minX, origin.OffsetY-minY)
 			copyGrid(resultGrid, destination.CollisionGrid, destination.OffsetX-minX, destination.OffsetY-minY)
 

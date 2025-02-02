@@ -64,6 +64,7 @@ func (p Path) From() data.Position {
 	}
 }
 
+// Intersects checks if the given position intersects with the path, padding parameter is used to increase the area
 func (p Path) Intersects(d game.Data, position data.Position, padding int) bool {
 	position = data.Position{
 		X: position.X - d.AreaOrigin.X,

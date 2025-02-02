@@ -41,6 +41,7 @@ func (pf *PathFinder) FindNearbyWalkablePosition(target data.Position) (data.Pos
 	}
 	walkablePosLock.RUnlock()
 
+	// Search in expanding squares around the target position
 	for radius := 1; radius <= 3; radius++ {
 		for x := -radius; x <= radius; x++ {
 			for y := -radius; y <= radius; y++ {
@@ -90,13 +91,14 @@ func (pf *PathFinder) OptimizeRoomsTraverseOrder() []data.Room {
 		nextRoom := data.Room{}
 		minDistance := math.MaxInt
 
+		// Find the nearest unvisited room
 		for _, room := range pf.data.Rooms {
 			if !visited[room] && distanceMatrix[currentRoom][room] < minDistance {
 				nextRoom = room
 				minDistance = distanceMatrix[currentRoom][room]
 			}
 		}
-
+		// Add the next room to the order of visit
 		order = append(order, nextRoom)
 		visited[nextRoom] = true
 		currentRoom = nextRoom
@@ -106,20 +108,25 @@ func (pf *PathFinder) OptimizeRoomsTraverseOrder() []data.Room {
 }
 
 func (pf *PathFinder) MoveThroughPath(p Path, walkDuration time.Duration) {
+	// Calculate the max distance we can walk in the given duration
 	maxDistance := int(float64(25) * walkDuration.Seconds())
+	// Let's try to calculate how close to the window border we can go
 	screenCords := data.Position{}
 
 	for distance, pos := range p {
 		screenX, screenY := pf.gameCoordsToScreenCords(p.From().X, p.From().Y, pos.X, pos.Y)
 
+		// We reached max distance, let's stop (if we are not teleporting)
 		if !pf.data.CanTeleport() && maxDistance > 0 && distance > maxDistance {
 			break
 		}
 
+		// Prevent mouse overlap the HUD
 		if screenY > int(float32(pf.gr.GameAreaSizeY)/1.21) {
 			break
 		}
 
+		// We are getting out of the window, let's stop
 		if screenX < 0 || screenY < 0 || screenX > pf.gr.GameAreaSizeX || screenY > pf.gr.GameAreaSizeY {
 			break
 		}
@@ -149,10 +156,14 @@ func (pf *PathFinder) GameCoordsToScreenCords(destinationX, destinationY int) (i
 }
 
 func (pf *PathFinder) gameCoordsToScreenCords(playerX, playerY, destinationX, destinationY int) (int, int) {
+	// Calculate diff between current player position and destination
 	diffX := destinationX - playerX
 	diffY := destinationY - playerY
-	screenX := int((float32(diffX-diffY)*19.8)+float32(pf.gr.GameAreaSizeX/2))
-	screenY := int((float32(diffX+diffY)*9.9)+float32(pf.gr.GameAreaSizeY/2))
+
+	// Transform cartesian movement (World) to isometric (screen)
+	// Helpful documentation: https://clintbellanger.net/articles/isometric_math/
+	screenX := int((float32(diffX-diffY) * 19.8) + float32(pf.gr.GameAreaSizeX/2))
+	screenY := int((float32(diffX+diffY) * 9.9) + float32(pf.gr.GameAreaSizeY/2))
 	return screenX, screenY
 }
 
