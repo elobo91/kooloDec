@@ -173,9 +173,10 @@ func (b *Bot) Run(ctx context.Context, firstRun bool, runs []run.Run) error {
 
 					b.ctx.Logger.Info("Going back to town", "reason", reason)
 
-					action.InRunReturnTownRoutine()
+					if err = action.InRunReturnTownRoutine(); err != nil {
+						b.ctx.Logger.Warn("Failed returning town.. will try again shortly", "error", err)
+					}
 				}
-
 				b.ctx.SwitchPriority(botCtx.PriorityNormal)
 			}
 		}
